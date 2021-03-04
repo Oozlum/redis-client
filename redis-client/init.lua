@@ -1,9 +1,9 @@
 -- Redis command handler
 local cqueues = require'cqueues'
 cqueues.condition = require'cqueues.condition'
-local redis = require'lredis.redis'
-local util = require'lredis.util'
-local response = require'lredis.response'
+local redis = require'redis-client.redis'
+local util = require'redis-client.util'
+local response = require'redis-client.response'
 
 local M = {}
 local command_renderers = {}
