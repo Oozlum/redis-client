@@ -1,5 +1,9 @@
+-- This file is a modified version of that found in https://github.com/daurnimator/lredis.git
+--
 -- Documentation on the redis protocol found at http://redis.io/topics/protocol
 --
+local response = require'redis-client.response'
+
 -- Encode and send a redis command.
 local function send_command(file, arg)
   if #arg == 0 then
@@ -72,14 +76,14 @@ local function read_response(file)
   elseif data_type == '*' and int_data == -1 then
     return response_renderer(response.ARRAY)
   elseif data_type == '*' and int_data >= 0 then
-    local data = {}
+    local array = {}
     for i = 1, int_data do
-      data[i], err_type, err_msg = read_response(file)
-      if not data[i] then
+      array[i], err_type, err_msg = read_response(file)
+      if not array[i] then
         return nil, err_type, err_msg
       end
     end
-    return response_renderer(response.ARRAY, data)
+    return response_renderer(response.ARRAY, array)
   end
 
   return nil, 'PROTOCOL', 'invalid response'

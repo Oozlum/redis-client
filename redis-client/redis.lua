@@ -61,8 +61,8 @@ local function redis_pcall(client, ...)
   end
 
   local cond = cqueues.condition.new()
-  local ok, err_type, err_msg = protocol.send_command(client.socket, args)
-  if not ok then
+  local resp, err_type, err_msg = protocol.send_command(client.socket, args)
+  if not resp then
     return nil, err_type, err_msg
   end
   table.insert(client.fifo, cond)
@@ -70,7 +70,7 @@ local function redis_pcall(client, ...)
     cond:wait()
   end
   -- read the response, signal the next command in the queue and then deal with errors.
-  local resp, err_type, err_msg = protocol.read_response(client.socket)
+  resp, err_type, err_msg = protocol.read_response(client.socket)
   table.remove(client.fifo, 1)
   if client.fifo[1] then
     client.fifo[1]:signal()
@@ -156,7 +156,8 @@ local function connect_tcp(host, port, error_handler)
   if not socket then return handle_error(nil, error_handler, err_type, err_msg) end
 
   socket:onerror(socket_error_handler)
-  local ok, err_type, err_msg = socket:connect()
+  local ok
+  ok, err_type, err_msg = socket:connect()
   if not ok then return handle_error(nil, error_handler, err_type, err_msg) end
 
   return new(socket, error_handler)

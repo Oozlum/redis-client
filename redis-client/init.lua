@@ -20,7 +20,7 @@ end
 
 -- find the appropriate response renderer and call it, returning the result.
 local function render_response(handler, cmd, options, args, type, data)
-  response_renderer = options.response_renderer or (handler or {attrs={}}).attrs.response_renderer or response.new
+  local response_renderer = options.response_renderer or (handler or {attrs={}}).attrs.response_renderer or response.new
   return response_renderer(cmd, options, args, type, data)
 end
 
@@ -61,7 +61,7 @@ local function new_handler(redis_client, handler_spec)
     call = function(handler, ...)
       local user_options, args = util.transform_variadic_args_to_tables(...)
       if #args == 0 then
-        return handle_error(handler, options.error_handler, 'USAGE', 'No command given')
+        return handle_error(handler, user_options.error_handler, 'USAGE', 'No command given')
       end
       local cmd = tostring(table.remove(args, 1)):upper()
 
@@ -80,12 +80,12 @@ local function new_handler(redis_client, handler_spec)
 
       -- apply the white and blacklists.
       if handler_spec.whitelist then
-        for _, cmd in ipairs(handler_spec.whitelist) do
-          table.insert(options.whitelist, cmd)
+        for _, entry in ipairs(handler_spec.whitelist) do
+          table.insert(options.whitelist, entry)
         end
       end
-      for _, cmd in ipairs(handler_spec.blacklist) do
-        table.insert(options.blacklist, cmd)
+      for _, entry in ipairs(handler_spec.blacklist) do
+        table.insert(options.blacklist, entry)
       end
 
       -- create a state object for use by the hooks.
@@ -107,7 +107,7 @@ local function new_handler(redis_client, handler_spec)
       end
 
       -- make the call using our own error handler and renderer.
-      local resp, err_type, err_msg = handler.attrs.redis_client:pcall(cmd, {
+      resp, err_type, err_msg = handler.attrs.redis_client:pcall(cmd, {
         error_handler = internal_error_handler,
         response_renderer = internal_response_renderer,
         blacklist = options.blacklist,
@@ -162,9 +162,9 @@ local function new_handler(redis_client, handler_spec)
       end
 
       if not cache[cmd] then
-        cache[cmd] = function(handler, ...)
+        cache[cmd] = function(self, ...)
           local options, args = util.transform_variadic_args_to_tables(cmd, ...)
-          return handler:call(options, args)
+          return self:call(options, args)
         end
       end
       return cache[cmd]
