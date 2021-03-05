@@ -3,10 +3,13 @@ cqueues.socket = require'cqueues.socket'
 local protocol = require'redis-client.protocol'
 local response = require'redis-client.response'
 
-local M = {}
-
 local server = cqueues.socket.listen{ host = '127.0.0.1', port = '0' }
-_, M.host, M.port = server:localname()
+local _, host, port = server:localname()
+
+local M = {
+  host = host,
+  port = port,
+}
 
 local function encode_response(data)
   local data_type
@@ -50,14 +53,14 @@ function M.listen(script)
   conn:setvbuf('full', math.huge)
   conn:onerror(function() return nil end)
 
-  local command, err_type, err_msg = protocol.read_response(conn)
+  local command = protocol.read_response(conn)
   while command do
-    local response = table.remove(script or {}, 1)
-    if not response then
+    local resp = table.remove(script or {}, 1)
+    if not resp then
       break
     end
-    conn:write(encode_response(response))
-    command, err_type, err_msg = protocol.read_response(conn)
+    conn:write(encode_response(resp))
+    command = protocol.read_response(conn)
   end
   conn:close()
 end

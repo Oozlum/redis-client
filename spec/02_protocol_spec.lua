@@ -15,7 +15,7 @@ describe('redis-client.protocol sending commands', function()
     local command
     redis.protocol.send_command({
       write = function(self, data) command = data; return true end,
-      flush = function()return true end,
+      flush = function() return true end,
     }, {
       'PING',
     })
@@ -24,22 +24,20 @@ describe('redis-client.protocol sending commands', function()
 
   it('captures write errors', function()
     redis.protocol.send_command({
-      write = function() end,
-      flush = function() end,
+      write = function() return nil, 110 end,
+      flush = function() return nil, 110 end,
     }, {
       'PING',
     })
-    assert.is_nil(command)
   end)
 
   it('captures flush errors', function()
     redis.protocol.send_command({
       write = function() return true end,
-      flush = function() end,
+      flush = function() return nil, 110 end,
     }, {
       'PING',
     })
-    assert.is_nil(command)
   end)
 end)
 
@@ -78,7 +76,7 @@ describe('redis-client.protocol reading responses', function()
     '$1\r\n',
     'Hello\r\n',
 
-    '£OK\r\n',
+    '#100\r\n',
   }
 
   local file = {

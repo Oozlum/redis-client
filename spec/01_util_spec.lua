@@ -4,7 +4,7 @@ describe('redis-client.util', function()
   it('dump nominally works', function()
     local print = _G.print
     _G.print = function() end -- we don't actually want to print anything.
-    util.dump({}, 'my table')
+    util.dump({ a = 'b' }, 'my table')
 
     _G.print = print
   end)

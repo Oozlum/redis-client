@@ -18,11 +18,11 @@ describe('redis-client.redis module', function()
   local cq = cqueues.new()
 
   local test_it = it
-  it = function(desc, func, test_script, timeout)
+  local it = function(desc, func, test_script, timeout)
     timeout = timeout or 1
 
     test_it(desc, function()
-      cq:wrap(function() server.listen(redis.util.deep_copy(test_script)) end)
+      cq:wrap(function() server.listen(redis.util.deep_copy(test_script or {})) end)
       cq:wrap(func)
 
       assert(cq:loop(timeout))
@@ -46,6 +46,27 @@ describe('redis-client.redis module', function()
     local response = rc:call('ping')
     assert.same(response, script[1])
     rc:close()
+  end, script)
+
+  it('rejects a closed socket', function()
+    local rc = redis.redis.new(cqueues.socket.connect{host = server.host, port = server.port}:connect())
+
+    rc:close()
+    local response = rc:call('ping', {
+      error_handler = function(...) return nil, ... end,
+    })
+    assert.is_nil(response)
+  end, script)
+
+  it('rejects an invalid socket', function()
+    local rc = redis.redis.new(cqueues.socket.connect{host = server.host, port = server.port}:connect())
+
+    rc:close()
+    rc.socket = nil
+    local response = rc:call('ping', {
+      error_handler = function(...) return nil, ... end,
+    })
+    assert.is_nil(response)
   end, script)
 
   it('catches errors with its default handler', function()
@@ -77,6 +98,21 @@ describe('redis-client.redis module', function()
       error_handler = error_handler
     })
     assert.spy(error_handler).was.called(1)
+
+    rc:close()
+  end, {})
+
+  it('returns nil,err,msg with no error handler set', function()
+    local old_handler = redis.redis.error_handler
+    local rc = redis.redis.connect(server.host, server.port)
+    finally(function()
+      redis.redis.error_handler = old_handler
+      rc:close()
+    end)
+
+    redis.redis.error_handler = nil
+    local resp = rc:call('ping')
+    assert.is_nil(resp)
 
     rc:close()
   end, {})
@@ -147,6 +183,21 @@ describe('redis-client.redis module', function()
     rc:close()
   end, {}, 2)
 
+  it('handles errors while waiting for a publication', function()
+    local rc = redis.redis.connect(server.host, server.port)
+    finally(function() rc:close() end)
+
+    -- poke the mock server so that it responds with a message.
+    redis.protocol.send_command(rc.socket, 'PUBLISH')
+
+    local resp = rc:next_publication({
+      error_handler = function(...) return nil, ... end,
+    })
+    assert.is_nil(resp)
+
+    rc:close()
+  end, {})
+
   it('handles multiple co-routines using the same client', function()
     local rc = redis.redis.connect(server.host, server.port)
     finally(function() rc:close() end)
@@ -168,4 +219,40 @@ describe('redis-client.redis module', function()
     { type = redis.response.STRING, data = 'string1' },
     { type = redis.response.STRING, data = 'string2' },
   }, 2)
+
+  it('uses white- and blacklists correctly', function()
+    local rc = redis.redis.connect(server.host, server.port)
+    finally(function() rc:close() end)
+
+    local resp = rc:call('ping', {
+      error_handler = function(...) return nil, ... end,
+      blacklist = {'PING'},
+    })
+    assert.is_nil(resp)
+
+    resp = rc:call('ping', {
+      error_handler = function(...) return nil, ... end,
+      whitelist = {'PING'},
+      blacklist = {'PING'},
+    })
+    assert.same({ type = redis.response.STATUS, data = 'PONG' }, resp)
+
+    resp = rc:call('ping', {
+      error_handler = function(...) return nil, ... end,
+      whitelist = {},
+    })
+    assert.is_nil(resp)
+    rc:close()
+  end, script)
+
+  it('rejects calls with no arguments', function()
+    local rc = redis.redis.connect(server.host, server.port)
+    finally(function() rc:close() end)
+
+    local resp = rc:call({
+      error_handler = function(...) return nil, ... end,
+    })
+    assert.is_nil(resp)
+    rc:close()
+  end)
 end)

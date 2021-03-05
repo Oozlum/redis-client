@@ -31,6 +31,8 @@ end
 
 -- simple non-recursive deep-copy function
 local function deep_copy(t)
+  if not t then return end
+
   local cache = { [t] = {} }
   local copy = { { src = t, dst = cache[t] } }
 
