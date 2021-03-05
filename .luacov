@@ -1,0 +1,9 @@
+return {
+  statsfile = 'luacov.stats.out',
+  reportfile = 'luacov.report.out',
+  deletestats = true,
+  modules = {
+    ['redis-client'] = 'redis-client/init.lua',
+    ['redis-client.*'] = '.',
+  },
+}

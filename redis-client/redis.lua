@@ -19,8 +19,10 @@ local function handle_error(client, error_handler, err_type, err_msg)
 end
 
 local function close_client(client)
-  client.socket:close()
-  client.socket = false
+  if client.socket ~= false then
+    client.socket:close()
+    client.socket = false
+  end
 end
 
 -- if a whitelist is given, only accept commands in the whitelist.

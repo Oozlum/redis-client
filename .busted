@@ -1,0 +1,6 @@
+return {
+  default = {
+    lpath = './?.lua;./?/init.lua',
+    helper = 'spec/cqueues-luacov-helper.lua',
+  },
+}

@@ -6,6 +6,10 @@ local response = require'redis-client.response'
 
 -- Encode and send a redis command.
 local function send_command(file, arg)
+  arg = arg or {}
+  if type(arg) == 'string' then
+    arg = {arg}
+  end
   if #arg == 0 then
     return nil, 'USAGE', 'No arguments given'
   end
@@ -59,6 +63,8 @@ local function read_response(file)
     return response_renderer(response.STATUS, data)
   elseif data_type == '-' then
     return response_renderer(response.ERROR, data)
+  elseif type(int_data) ~= 'number' then
+    return nil, 'PROTOCOL', 'malformed response'
   elseif data_type == ':' and int_data then
     return response_renderer(response.INT, int_data)
   elseif data_type == '$' and int_data == -1 then
@@ -70,7 +76,7 @@ local function read_response(file)
     end
     data, ending = line:sub(1, -3), line:sub(-2)
     if ending ~= '\r\n' then
-      return nil, 'PROTOCOL', 'invalid line ending'
+      return nil, 'PROTOCOL', 'malformed response'
     end
     return response_renderer(response.STRING, data)
   elseif data_type == '*' and int_data == -1 then
