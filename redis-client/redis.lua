@@ -8,6 +8,25 @@ cqueues.errno = require'cqueues.errno'
 
 local M = {}
 
+-- format and return a socket error for the given code.
+local function socket_error(code)
+  if not code then
+    code = 'Unknown error'
+  end
+  if type(code) == 'string' then
+    return 'SOCKET', code
+  end
+  return 'SOCKET', ('%s %s'):format(cqueues.errno[code] or '', cqueues.errno.strerror(code))
+end
+
+-- format and return a protocol error.
+local function protocol_error(err_type, err_msg)
+  if err_type == 'SOCKET' then
+    err_type, err_msg = socket_error(err_msg)
+  end
+  return err_type, err_msg
+end
+
 -- find the appropriate error handler and call it, returning the result.
 local function handle_error(client, error_handler, err_type, err_msg)
   error_handler = error_handler or (client or {}).error_handler or M.error_handler
@@ -65,7 +84,7 @@ local function redis_pcall(client, ...)
   local cond = cqueues.condition.new()
   local resp, err_type, err_msg = protocol.send_command(client.socket, args)
   if not resp then
-    return nil, err_type, err_msg
+    return nil, protocol_error(err_type, err_msg)
   end
   table.insert(client.fifo, cond)
   if client.fifo[1] ~= cond then
@@ -85,7 +104,7 @@ local function redis_pcall(client, ...)
     return renderer(cmd, options, args, resp.type, resp.data)
   end
 
-  return nil, err_type, err_msg
+  return nil, protocol_error(err_type, err_msg)
 end
 
 -- call the redis function and return the response.
@@ -109,6 +128,7 @@ local function redis_next_publication(client, options)
       return client.socket:xread(format, nil, options.timeout)
     end})
   if not resp then
+    err_type, err_msg = protocol_error(err_type, err_msg)
     if err_type == 'SOCKET' and err_msg:sub(1, 9) == 'ETIMEDOUT' then
       resp = {
         type = response.ARRAY
@@ -127,7 +147,8 @@ end
 -- override the default socket handler so that it returns all errors rather than
 -- throwing them.
 local function socket_error_handler(socket, method, code, level)
-  return 'SOCKET', ('%s %s'):format(cqueues.errno[code] or '', cqueues.errno.strerror(code)), level
+  socket:clearerr('rw')
+  return code
 end
 
 local function new(socket, error_handler)
@@ -146,21 +167,19 @@ local function new(socket, error_handler)
 end
 
 local function connect_tcp(host, port, error_handler)
-  -- override the global CQueues error handler briefly, until we have a socket.
-  local old_error_handler = cqueues.socket.onerror(socket_error_handler)
-  local socket, err_type, err_msg = cqueues.socket.connect({
+  cqueues.socket.onerror(socket_error_handler)
+  local socket, err_code = cqueues.socket.connect({
     host = host or '127.0.0.1',
     port = port or '6379',
     nodelay = true,
   })
-  cqueues.socket.onerror(old_error_handler)
 
-  if not socket then return handle_error(nil, error_handler, err_type, err_msg) end
+  if not socket then return handle_error(nil, error_handler, socket_error(err_code)) end
 
   socket:onerror(socket_error_handler)
   local ok
-  ok, err_type, err_msg = socket:connect()
-  if not ok then return handle_error(nil, error_handler, err_type, err_msg) end
+  ok, err_code = socket:connect()
+  if not ok then return handle_error(nil, error_handler, socket_error(err_code)) end
 
   return new(socket, error_handler)
 end

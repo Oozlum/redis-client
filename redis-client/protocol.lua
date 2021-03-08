@@ -25,13 +25,13 @@ local function send_command(file, arg)
   str_arg = table.concat(str_arg)
 
   -- send the string to the server.
-  local ok, err_type, err_msg = file:write(str_arg)
+  local ok, err_code = file:write(str_arg)
   if not ok then
-    return nil, err_type, err_msg
+    return nil, 'SOCKET', err_code
   end
-  ok, err_type, err_msg = file:flush()
+  ok, err_code = file:flush()
   if not ok then
-    return nil, err_type, err_msg
+    return nil, 'SOCKET', err_code
   end
 
   return true
@@ -46,9 +46,9 @@ end
 
 -- Parse a redis response
 local function read_response(file)
-  local line, err_type, err_msg = file:read('*L')
+  local line, err_code = file:read('*L')
   if not line then
-    return nil, err_type or 'SOCKET', err_msg or 'EOF'
+    return nil, 'SOCKET', err_code
   end
 
   -- split the string into its component parts and validate.
@@ -70,9 +70,9 @@ local function read_response(file)
   elseif data_type == '$' and int_data == -1 then
     return response_renderer(response.STRING)
   elseif data_type == '$' and int_data >= 0 and int_data <= 512*1024*1024 then
-    line, err_type, err_msg = file:read(int_data + 2)
+    line, err_code = file:read(int_data + 2)
     if not line then
-      return nil, err_type, err_msg
+      return nil, 'SOCKET', err_code
     end
     data, ending = line:sub(1, -3), line:sub(-2)
     if ending ~= '\r\n' then
@@ -82,7 +82,7 @@ local function read_response(file)
   elseif data_type == '*' and int_data == -1 then
     return response_renderer(response.ARRAY)
   elseif data_type == '*' and int_data >= 0 then
-    local array = {}
+    local array, err_type, err_msg = {}
     for i = 1, int_data do
       array[i], err_type, err_msg = read_response(file)
       if not array[i] then

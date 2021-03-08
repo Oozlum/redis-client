@@ -56,6 +56,7 @@ local function new_handler(redis_client, handler_spec)
     close = function(handler)
       if handler.attrs.redis_client then
         handler.attrs.redis_client:close()
+        handler.attrs.redis_client = nil
       end
     end,
     call = function(handler, ...)
@@ -107,7 +108,7 @@ local function new_handler(redis_client, handler_spec)
       end
 
       -- make the call using our own error handler and renderer.
-      resp, err_type, err_msg = handler.attrs.redis_client:pcall(cmd, {
+      resp, err_type, err_msg = handler.attrs.redis_client:call(cmd, {
         error_handler = internal_error_handler,
         response_renderer = internal_response_renderer,
         blacklist = options.blacklist,
@@ -209,6 +210,7 @@ function command_renderers.EXEC(handler, state, cmd, options, args, type, data)
       if command_renderers[_cmd.cmd] then
         data[i] = command_renderers[_cmd.cmd](handler, _cmd.state, _cmd.cmd, _cmd.options, _cmd.args, data[i].type, data[i].data)
       end
+      data[i] = render_response(handler, _cmd.cmd, _cmd.options.user_options, _cmd.args, data[i].type, data[i].data)
     end
   end
 
@@ -429,8 +431,9 @@ local command_handler_spec = {
 
   methods = {
     next_publication = function(handler, options)
+      options = options or {}
       if not handler.attrs.subscribed then
-        return nil, 'USAGE', 'Not subscribed'
+        return handle_error(handler, options.error_handler, 'USAGE', 'Not subscribed')
       end
       local resp, err_type, err_msg = handler.attrs.redis_client:next_publication({
         error_handler = internal_error_handler,
