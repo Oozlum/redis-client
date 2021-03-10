@@ -5,7 +5,11 @@ local redis = require'redis-client.redis'
 local util = require'redis-client.util'
 local response = require'redis-client.response'
 
-local M = {}
+local M = {
+  redis = require'redis-client.redis',
+  util = require'redis-client.util',
+  response = require'redis-client.response',
+}
 local command_renderers = {}
 
 -- find the appropriate error handler and call it, returning the result.
@@ -459,7 +463,7 @@ M.connect = function(host, port, error_handler)
   return new_handler(redis_client, command_handler_spec)
 end
 M.error_handler = function(err_type, err_msg)
-  error(('%s %s'):format(tostring(err_type), tostring(err_msg)), 2)
+  return nil, err_type, err_msg
 end
 
 return M

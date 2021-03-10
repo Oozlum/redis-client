@@ -73,7 +73,12 @@ describe('redis-client.redis module', function()
     local rc = redis.redis.connect(server.host, server.port)
     finally(function() rc:close() end)
 
-    assert.has.errors(function() rc:call('ping') end)
+    local old_error_handler = redis.redis.error_handler
+    redis.redis.error_handler = spy.new(old_error_handler)
+    rc:call('ping')
+    assert.spy(redis.redis.error_handler).was.called(1)
+    redis.redis.error_handler = old_error_handler
+
     rc:close()
   end, {})
 

@@ -187,7 +187,7 @@ end
 M.new = new
 M.connect = connect_tcp
 M.error_handler = function(err_type, err_msg)
-  error(('%s %s'):format(tostring(err_type), tostring(err_msg)), 2)
+  return nil, err_type, err_msg
 end
 
 return M

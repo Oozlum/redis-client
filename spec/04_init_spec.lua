@@ -49,14 +49,6 @@ describe('redis-client module basic operation', function()
     rc:close()
   end, script)
 
-  it('catches errors with its default handler', function()
-    local rc = redis.connect(server.host, server.port)
-    finally(function() rc:close() end)
-
-    assert.has.errors(function() rc:ping() end)
-    rc:close()
-  end, {})
-
   it('selects the correct error handler', function()
     local old_handler = redis.error_handler
     local rc = redis.connect(server.host, server.port)
@@ -102,7 +94,7 @@ describe('redis-client module basic operation', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
 
-    assert.has.errors(function() rc:call() end)
+    assert.is_nil(rc:call())
     assert.is_nil(rc[1])
 
     rc:close()
@@ -169,41 +161,41 @@ describe('redis-client module client blacklist checking', function()
   it('rejects DISCARD outside a transaction', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
-    assert.has.errors(function() rc:discard() end)
+    assert.is_nil(rc:discard())
     rc:close()
   end)
 
   it('rejects EXEC outside a transaction', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
-    assert.has.errors(function() rc:discard() end)
+    assert.is_nil(rc:discard())
     rc:close()
   end)
 
   it('handles a user blacklist', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
-    assert.has.errors(function() rc:get({
+    assert.is_nil(rc:get({
       blacklist = {'GET'}
-    }) end)
+    }))
     rc:close()
   end)
 
   it('a user blacklist doesn\'t overwrite the in-built one', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
-    assert.has.errors(function() rc:discard({
+    assert.is_nil(rc:discard({
       blacklist = {'GET'}
-    }) end)
+    }))
     rc:close()
   end)
 
   it('handles a user whitelist', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
-    assert.has.errors(function() rc:get({
+    assert.is_nil(rc:get({
       whitelist = {'HMSET'}
-    }) end)
+    }))
     rc:close()
   end)
 end)
@@ -257,7 +249,7 @@ describe('redis-client module transaction handling', function()
     local multi = rc:multi()
     local resp = multi:get('string')
     assert.same({ type = redis.response.STATUS, data = 'QUEUED' }, resp)
-    assert.has.errors(function() rc:get('string') end)
+    assert.is_nil(rc:get('string'))
   end)
 
   busted_it('rejects nested transactions', function()
@@ -274,7 +266,7 @@ describe('redis-client module transaction handling', function()
     }))
 
     local multi = rc:multi()
-    assert.has.errors(function() multi:multi() end)
+    assert.is_nil(multi:multi())
   end)
 
   it('re-calls transaction callbacks and renderers when the exec has completed', function()
@@ -314,7 +306,7 @@ describe('redis-client module transaction handling', function()
     local multi = rc:multi()
     multi:ping()
     multi:exec()
-    assert.has.errors(function() multi:ping() end)
+    assert.is_nil(multi:ping())
     rc:close()
   end, {
     { type = redis.response.STATUS, data = 'OK' },
@@ -329,7 +321,7 @@ describe('redis-client module transaction handling', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
 
-    assert.has.errors(function() rc:multi() end)
+    assert.is_nil(rc:multi())
 
     rc:close()
   end, {
@@ -471,11 +463,11 @@ describe('redis-client module pub/sub', function()
     finally(function() rc:close() end)
 
     rc:subscribe('test')
-    assert.has.errors(function() rc:ping() end)
+    assert.is_nil(rc:ping())
     rc:reset()
     local multi = rc:multi()
     multi:subscribe('test')
-    assert.has.errors(function() multi:ping() end)
+    assert.is_nil(multi:ping())
     rc:close()
   end, {
     { type = redis.response.STATUS, data = 'OK' },
@@ -497,8 +489,8 @@ describe('redis-client module pub/sub', function()
     multi = rc:multi()
     multi:subscribe('test')
     multi:exec()
-    assert.has.errors(function() rc:ping() end)
-    assert.has.errors(function() rc:multi() end)
+    assert.is_nil(rc:ping())
+    assert.is_nil(rc:multi())
 
     rc:close()
   end, {
@@ -515,7 +507,7 @@ describe('redis-client module pub/sub', function()
     local rc = redis.connect(server.host, server.port)
     finally(function() rc:close() end)
 
-    assert.has.errors(function() rc:next_publication() end)
+    assert.is_nil(rc:next_publication())
 
     rc:close()
   end)
@@ -577,7 +569,7 @@ describe('redis-client module pub/sub', function()
     }))
 
     rc:subscribe('test')
-    assert.has.errors(function() rc:next_publication() end)
+    assert.is_nil(rc:next_publication())
   end)
 
 end)
