@@ -112,7 +112,7 @@ end
 local function redis_call(client, ...)
   local options, args = util.transform_variadic_args_to_tables(...)
 
-  local resp, err_type, err_msg = client:pcall(options, args)
+  local resp, err_type, err_msg = redis_pcall(client, options, args)
   if not resp then
     return handle_error(client, options.error_handler, err_type, err_msg)
   end
@@ -160,7 +160,6 @@ local function new(socket, error_handler)
     error_handler = error_handler,
     fifo = {},
     close = close_client,
-    pcall = redis_pcall,
     call = redis_call,
     next_publication = redis_next_publication,
   }
