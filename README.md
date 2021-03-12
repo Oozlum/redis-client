@@ -279,7 +279,7 @@ Returns a client object or ```nil, err_type, err_msg``` on failure.
 
 The default error handler used by client objects.  See [Custom Error Handlers](#custom-error-handlers).
 
-### rc:<foo>
+### rc:\<foo\>
 
 redis-client will transform any non-existing, string key ```foo``` into a redis call with command ```'foo'```.  i.e.
 ```lua
@@ -340,7 +340,7 @@ transaction = rc:multi()
 
 Issues a MULTI command to the redis server and returns a transaction object which behaves in the same manner as ```rc```.  Any subsequent use of ```rc``` will block until the transaction is completed (e.g. by 'DISCARD', 'EXEC' or 'RESET')
 
-### multi:<foo>
+### multi:\<foo\>
 
 The calling semantics are identical to ```rc:<foo>```, however it should be noted that within a transaction, the redis response will be either a ```redis.response.ERROR``` or a ```redis.response.STATUS``` with data ```'QUEUED'```.
 
