@@ -239,3 +239,140 @@ Closes the client and ends the server connection.
 
 The default error handler used for calls made using this client.  Initially set on creation, can be replaced at any time.
 
+## redis-client
+
+redis-client provides the highest level abstraction for redis commands, providing:
+- intelligent transformation of responses based on the commands that produced them
+- transaction management
+- state-based command rejection
+
+As a convenience, all sub-modules are made available within the redis-cient table, i.e.
+```lua
+redis-client.redis
+redis-client.protocol
+redis-client.response
+```
+
+### redis-client.new
+```lua
+client, err_type, err_msg = redis_client.new(redis_client, error_handler)
+```
+```redis_client```: a redis-client.redis client object. (See [redis-client.redis.connect](#redis-clientredisconnect) or [redis-client.redis.new](#redis-clientredisnew).)
+
+```error_handler```: (optional) the error handler function that should be used for this client by default, overriding the module default.  See [Custom Error Handlers](#custom-error-handlers).
+
+Returns a client object or ```nil, err_type, err_msg``` on failure.
+
+### redis-client.connect
+```lua
+rc, err_type, err_msg = redis_client.connect(host, port, error_handler)
+```
+```host```: (optional, default: '127.0.0.1') a resolvable hostname or IP address that will be used to connect to the redis server.
+
+```port```: (optional, default: 6379) the listening port of the redis server.
+
+```error_handler```: (optional) the error handler function that should be used for this client by default, overriding the module default.  See [Custom Error Handlers](#custom-error-handlers).
+
+Returns a client object or ```nil, err_type, err_msg``` on failure.
+
+### redis-client.error\_handler
+
+The default error handler used by client objects.  See [Custom Error Handlers](#custom-error-handlers).
+
+### rc:<foo>
+
+redis-client will transform any non-existing, string key ```foo``` into a redis call with command ```'foo'```.  i.e.
+```lua
+rc:get(...) -- becomes rc:call('get', ...)
+```
+
+### rc:call
+```lua
+response, err_type, err_msg = rc:call(...)
+```
+
+This has the same calling semantics as [redis-client.redis client:call()](#clientcall), but also accepts an additional ```option.callback```.  If a callback function is given, it will be called when the command response has been received, just before returning to the caller.  In the event of an error, ```options.callback``` will not be called.  Callbacks are called after response rendering has taken place.
+```lua
+response, err_type, err_msg = rc:call('get', {
+    callback = function(cmd, options, args, response)
+      -- in this example: callback('GET', {callback=...}, {'string'}, response)
+    end
+  }, 'string')
+```
+
+### rc:hmget, rc:hgetall
+```lua
+response, err_type, err_msg = rc:hmget(...)
+response, err_type, err_msg = rc:hgetall(...)
+```
+
+These commands use ```rc:call``` to issue the appropriate command to the redis server, but transform the response from an indexed array of ```{'key', 'value', 'key', 'value', ...}``` into a table of key-value pairs: ```{ key = 'value', ...}```, for example:
+
+```lua
+response = rc:hmget('hash', 'key1', 'key2')
+-- response == {
+--   type = redis.response.ARRAY,
+--   data = {
+--     key1 = { type = redis.response.STRING, data = 'value1' },
+--     key2 = { type = redis.response.STRING, data = 'value1' },
+--   }
+-- }
+```
+
+### rc:hmset
+```lua
+response, err_type, err_msg = rc:hmset({ key1 = 'value1', key2 = 'value2'})
+```
+
+This operates in exactly the same manner as ```rc:call()``` except that the arguments may include key-value pairs which are automatically transformed into indexed array elements.
+
+### rc:close
+```lua
+rc:close()
+```
+
+Closes the client and ends the server connection.
+
+### rc:multi
+```lua
+transaction = rc:multi()
+```
+
+Issues a MULTI command to the redis server and returns a transaction object which behaves in the same manner as ```rc```.  Any subsequent use of ```rc``` will block until the transaction is completed (e.g. by 'DISCARD', 'EXEC' or 'RESET')
+
+### multi:<foo>
+
+The calling semantics are identical to ```rc:<foo>```, however it should be noted that within a transaction, the redis response will be either a ```redis.response.ERROR``` or a ```redis.response.STATUS``` with data ```'QUEUED'```.
+
+### multi:exec
+```lua
+response, err_type, err_msg = multi:exec()
+```
+
+This issues the EXEC call to the redis server to execute all queued commands.  All individual command renderers and callbacks will be called again with the actual response of the command.  Finally, any callback for the ```exec()``` command will be called.  The response for the ```exec()``` call is a redis array containing the responses of each queued command.  For example:
+```lua
+local options = {
+  callback = function(cmd, options, args, response)
+}
+
+local multi = rc:multi()
+multi:get('string', options)
+-- options.callback('GET', options, {'string'}, { type = redis.response.STATUS, data = 'QUEUED' }) called
+
+local response = multi:exec(options)
+-- options.callback('GET', options, {'string'}, { type = redis.response.STRING, data = 'My string' }) called
+-- options.callback('EXEC', options, {}, {
+--   type = redis.response.ARRAY,
+--   data = {
+--     { type = redis.response.STRING, data = 'My string' },
+--   }
+-- }) called
+--
+-- response = {
+--   type = redis.response.ARRAY,
+--   data = {
+--     { type = redis.response.STRING, data = 'My string' },
+--   }
+-- }
+```
+
