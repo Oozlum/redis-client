@@ -79,6 +79,7 @@ end
 
 ### Response Handling
 All redis commands return a value that is of one of the following types:
+- NONE
 - STATUS
 - ERROR
 - INT
@@ -216,6 +217,7 @@ client:call('lrange', {options}, {0, -1}) -- client:call({options}, {'lrange', 0
 ```options.response_renderer```: the response renderer to be used for this call.
 ```options.whitelist```: a table of allowable redis commands, e.g. ```{ 'GET', 'PING' }```.  If present, any commands not in this list will be rejected.
 ```options.blacklist```: a table of disallowed redis commands, e.g. ```{ 'GET', 'PING' }```.  If present, any commands in this list will be rejected.
+```options.no_response```: do not expect a response from this command; a ```NONE``` response will be returned on success.
 
 ### client:next\_publication
 ```lua
@@ -226,7 +228,7 @@ response, err_type, err_msg = client:next_publication(options)
 ```options.error_handler```: the error handler to be used for this call.
 ```options.response_renderer```: the response renderer to be used for this call.
 
-```client:next_publication``` will wait for a publication to be received from the server.  If ```options.timeout``` is not given, it will wait indefinitely.  Errors will be handled as above.  On timeout, an empty redis array will be returned.
+```client:next_publication``` will wait for a publication to be received from the server.  If ```options.timeout``` is not given, it will wait indefinitely.  Errors will be handled as above.  On timeout, a ```NONE``` response will be returned.
 
 ### client:close
 ```lua
@@ -325,6 +327,13 @@ response, err_type, err_msg = rc:hmset({ key1 = 'value1', key2 = 'value2'})
 ```
 
 This operates in exactly the same manner as ```rc:call()``` except that the arguments may include key-value pairs which are automatically transformed into indexed array elements.
+
+### rc:not_subscribed
+```lua
+rc:not_subscribed()
+```
+
+The library does not keep track of active subscriptions and so cannot automatically exit subscription mode if the client unsubscribes from the last channel.  This function tells the library to exit subscription mode.
 
 ### rc:close
 ```lua
