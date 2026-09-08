@@ -81,11 +81,18 @@ local function redis_pcall(client, ...)
     return nil, 'USAGE', 'invalid socket'
   end
 
-  local cond = cqueues.condition.new()
   local resp, err_type, err_msg = protocol.send_command(client.socket, args)
   if not resp then
     return nil, protocol_error(err_type, err_msg)
   end
+
+  -- if we are not expecting a response to this command (i.e. in subscription mode)
+  -- then just return a NONE response here.
+  if options.no_response then
+    return renderer(cmd, options, args, response.NONE)
+  end
+
+  local cond = cqueues.condition.new()
   table.insert(client.fifo, cond)
   if client.fifo[1] ~= cond then
     cond:wait()

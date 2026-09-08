@@ -112,11 +112,13 @@ local function new_handler(redis_client, handler_spec)
       end
 
       -- make the call using our own error handler and renderer.
+      -- Do not expect a response if we are subscribed.
       resp, err_type, err_msg = handler.attrs.redis_client:call(cmd, {
         error_handler = internal_error_handler,
         response_renderer = internal_response_renderer,
         blacklist = options.blacklist,
         whitelist = options.whitelist,
+        no_response = handler.attrs.subscribed,
       }, args)
 
       -- call the post-call hook with the results of the actual call
