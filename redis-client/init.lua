@@ -437,6 +437,9 @@ local command_handler_spec = {
   },
 
   methods = {
+    not_subscribed = function(handler)
+      handler.attrs.subscribed = nil
+    end,
     next_publication = function(handler, options)
       options = options or {}
       if not handler.attrs.subscribed then
