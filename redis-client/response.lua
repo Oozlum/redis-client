@@ -1,6 +1,7 @@
 -- Construction of a redis response object.
 
 return {
+  NONE = 'NONE',
   STATUS = 'STATUS',
   ERROR = 'ERROR',
   INT = 'INT',

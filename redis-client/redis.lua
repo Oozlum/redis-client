@@ -131,7 +131,7 @@ local function redis_next_publication(client, options)
     err_type, err_msg = protocol_error(err_type, err_msg)
     if err_type == 'SOCKET' and err_msg:sub(1, 9) == 'ETIMEDOUT' then
       resp = {
-        type = response.ARRAY
+        type = response.NONE
       }
     else
       return handle_error(client, options.error_handler, err_type, err_msg)
