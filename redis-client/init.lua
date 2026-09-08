@@ -366,6 +366,7 @@ local command_handler_spec = {
           'PSUBSCRIBE',
           'UNSUBSCRIBE',
           'PUNSUBSCRIBE',
+          'PING',
           'RESET',
           'QUIT',
         }
